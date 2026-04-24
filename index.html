@@ -924,13 +924,15 @@ function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault()
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,95)+'px'; }
 
 // ─────────────────────────────
-//  SPEECH  (mobile-safe fix)
+//  SPEECH  (mobile-safe v2)
 // ─────────────────────────────
-let _micTimeout = null;
+let _micTimeout    = null;  // timeout de seguridad principal
+let _micStartTimer = null;  // timeout pre-inicio (si onstart no llega)
 
 function _resetMicUI(statusText) {
   isListening = false;
   clearTimeout(_micTimeout);
+  clearTimeout(_micStartTimer);
   const btn = document.getElementById('mic-btn');
   const st  = document.getElementById('mic-status');
   btn.classList.remove('listening');
@@ -950,36 +952,35 @@ function initSpeech() {
   function buildRecognition() {
     const r = new SR();
     r.lang = 'es-PE';
-    // interimResults=false evita cuelgues en iOS Safari con continuous=false
-    r.interimResults = false;
+    r.interimResults = false;  // false evita cuelgues en iOS/Android
     r.continuous     = false;
     r.maxAlternatives = 1;
 
     r.onstart = () => {
-      // Safety timeout: si en 12 s el navegador no dispara onend, lo forzamos
+      // onstart llegó → cancelar el timer pre-inicio y arrancar el timer principal
+      clearTimeout(_micStartTimer);
       clearTimeout(_micTimeout);
       _micTimeout = setTimeout(() => {
-        try { r.stop(); } catch(e) {}
-        _resetMicUI('Tiempo agotado');
-      }, 12000);
+        try { r.abort(); } catch(e) {}
+        _resetMicUI('Tiempo agotado – intenta de nuevo');
+      }, 10000);
     };
 
     r.onresult = e => {
-      let final = '', interim = '';
+      // Tenemos resultado → limpiar timeout, ya no hay riesgo de cuelgue
+      clearTimeout(_micTimeout);
+      let final = '';
       for (let res of e.results) {
-        if (res.isFinal) final   += res[0].transcript;
-        else             interim += res[0].transcript;
+        if (res.isFinal) final += res[0].transcript;
       }
-      const inp = document.getElementById('chat-input');
-      inp.value = final || interim;
-      autoResize(inp);
+      if (final) {
+        const inp = document.getElementById('chat-input');
+        inp.value = final;
+        autoResize(inp);
+      }
     };
 
-    r.onspeechend = () => {
-      // iOS a veces no llama a onend automáticamente; lo forzamos aquí
-      try { r.stop(); } catch(e) {}
-    };
-
+    // onend siempre se llama al final (después de onerror también)
     r.onend = () => {
       _resetMicUI('Presiona para dictar');
       const t = document.getElementById('chat-input').value.trim();
@@ -987,40 +988,51 @@ function initSpeech() {
     };
 
     r.onerror = ev => {
-      const code = ev.error;
+      // No reseteamos UI aquí porque onend llegará justo después
+      // Solo limpiamos los timers para evitar doble-disparo
+      clearTimeout(_micTimeout);
+      clearTimeout(_micStartTimer);
       const msgs = {
-        'no-speech'   : 'Sin audio detectado',
-        'not-allowed' : 'Permiso de micrófono denegado',
-        'network'     : 'Error de red – revisa conexión',
-        'aborted'     : 'Micrófono cancelado',
-        'audio-capture': 'No se detectó micrófono',
+        'no-speech'    : '⚠️ Sin audio – habla más cerca',
+        'not-allowed'  : '⚠️ Permiso de micrófono denegado',
+        'network'      : '⚠️ Error de red',
+        'audio-capture': '⚠️ Micrófono no encontrado',
+        'aborted'      : null,
       };
-      _resetMicUI('⚠️ ' + (msgs[code] || code));
+      const msg = msgs[ev.error];
+      if (msg) {
+        // Mostramos el error; onend igualmente reseteará isListening
+        document.getElementById('mic-status').textContent = msg;
+      }
     };
 
     return r;
   }
 
-  recognition = buildRecognition();
-
-  // Guardar factory para reusar en cada pulsación (iOS necesita nueva instancia)
-  recognition._factory = buildRecognition;
+  // Guardamos solo la factory; la instancia real se crea en cada uso
+  recognition = { _factory: buildRecognition };
 }
 
 function toggleMic() {
-  if (!recognition) return;
+  if (!recognition || !recognition._factory) return;
 
   if (isListening) {
-    try { recognition.stop(); } catch(e) {}
+    // El usuario toca para cancelar manualmente
+    clearTimeout(_micTimeout);
+    clearTimeout(_micStartTimer);
+    try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
+    // No esperamos onend; reseteamos inmediatamente
+    isListening = false;
+    document.getElementById('mic-btn').classList.remove('listening');
+    document.getElementById('mic-status').classList.remove('active');
+    document.getElementById('mic-status').textContent = 'Presiona para dictar';
     return;
   }
 
-  // iOS requiere nueva instancia en cada uso para no quedar bloqueada
-  if (recognition._factory) {
-    const factory = recognition._factory;
-    recognition = factory();
-    recognition._factory = factory; // preserve ref
-  }
+  // Crear instancia fresca en cada uso (necesario en iOS y algunos Android)
+  const factory = recognition._factory;
+  recognition = factory();
+  recognition._factory = factory;
 
   isListening = true;
   document.getElementById('mic-btn').classList.add('listening');
@@ -1029,10 +1041,20 @@ function toggleMic() {
   s.classList.add('active');
   document.getElementById('chat-input').value = '';
 
+  // ★ CLAVE: timer pre-inicio desde aquí mismo, no en onstart
+  // Si el navegador tarda >5 s en arrancar (lentitud de red, permisos, etc.)
+  // desbloqueamos la UI para que el usuario pueda intentar de nuevo.
+  clearTimeout(_micStartTimer);
+  _micStartTimer = setTimeout(() => {
+    if (isListening) {
+      try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
+      _resetMicUI('⚠️ Tardó mucho – toca de nuevo');
+    }
+  }, 5000);
+
   try {
     recognition.start();
   } catch(e) {
-    // InvalidStateError u otro – abortar limpiamente
     _resetMicUI('⚠️ No se pudo iniciar');
   }
 }
