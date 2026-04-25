@@ -236,15 +236,9 @@
     .send-btn { width: 36px; height: 36px; border-radius: 9px; background: var(--brand); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all .18s; }
     .send-btn:hover { background: var(--brand-dark); transform: scale(1.06); }
     .send-btn svg { width: 15px; height: 15px; color: #0f172a; }
-    .mic-row { display: flex; align-items: center; gap: .55rem; }
-    .mic-btn { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; transition: all .2s; flex-shrink: 0; }
-    .mic-btn:hover { background: rgba(255,255,255,.12); }
-    .mic-btn.listening { background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.55); animation: mic-pulse 1.5s infinite; }
-    @keyframes mic-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 0 8px rgba(239,68,68,0)} }
-    .mic-status { font-size: .67rem; color: rgba(255,255,255,.35); flex: 1; }
-    .mic-status.active { color: #f87171; }
-    .skip-btn { padding: .3rem .7rem; border-radius: 6px; border: 1px solid rgba(255,255,255,.12); background: transparent; color: rgba(255,255,255,.35); font-size: .65rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .18s; white-space: nowrap; }
-    .skip-btn:hover { border-color: rgba(255,255,255,.25); color: rgba(255,255,255,.6); }
+    .input-actions { display: flex; align-items: center; gap: .5rem; padding-top: .15rem; }
+    .skip-btn { padding: .32rem .75rem; border-radius: 6px; border: 1px solid rgba(255,255,255,.12); background: transparent; color: rgba(255,255,255,.45); font-size: .68rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all .18s; white-space: nowrap; }
+    .skip-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.8); background: rgba(255,255,255,.06); }
 
     /* ── TOAST ── */
     .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 99999; display: flex; flex-direction: column; gap: .45rem; pointer-events: none; }
@@ -284,7 +278,52 @@
     @media (max-width: 820px) {
       body { overflow: auto; }
       .app-layout { grid-template-columns: 1fr; }
-      .assistant-panel { height: 390px; border-left: none; border-top: 1px solid var(--sidebar-border); }
+      .assistant-panel { height: 400px; border-left: none; border-top: 1px solid var(--sidebar-border); }
+      .top-bar { padding: .5rem 1rem; }
+      .btn { padding: .38rem .75rem; font-size: .72rem; }
+    }
+    @media (max-width: 580px) {
+      .top-bar { padding: .4rem .7rem; flex-wrap: wrap; gap: .35rem; }
+      .top-logo span { font-size: .78rem; }
+      .save-indicator { font-size: .58rem; }
+      .top-actions { gap: .28rem; }
+      .btn { padding: .35rem .55rem; font-size: .67rem; }
+      .form-panel { padding: .6rem .35rem; }
+      .form-card { border-radius: 8px; }
+      .form-header { grid-template-columns: auto 1fr; gap: .4rem; padding: .8rem .9rem .65rem; }
+      .form-title { font-size: .78rem; letter-spacing: .04em; }
+      .logo-wrap svg { width: 32px; height: 32px; }
+      .logo-text { font-size: .95rem; }
+      .form-num-input { width: 85px; font-size: .78rem; }
+      .fields-row, .fields-row.three { grid-template-columns: 1fr; }
+      .field { border-right: none; border-bottom: 1px solid var(--border); min-height: 46px; padding: .52rem .9rem .52rem 1rem; }
+      .field:last-child { border-bottom: none; }
+      .field input[type="text"], .field input[type="date"], .field input[type="time"] { font-size: 16px; }
+      .section-label { padding: .4rem .9rem .1rem; }
+      .section-label.step { padding: .42rem .9rem; font-size: .63rem; }
+      .paso1-wrap { padding: .5rem .9rem; gap: .5rem; }
+      .paso1-row { flex-direction: column; align-items: flex-start; gap: .32rem; }
+      .check-item { min-height: 30px; font-size: .72rem; }
+      .check-item input[type="checkbox"] { width: 16px; height: 16px; }
+      .inline-field label { font-size: .7rem; }
+      .inline-field input { font-size: 16px; width: 85px !important; }
+      .textarea-wrap { padding: .45rem .9rem .65rem; }
+      .form-textarea { font-size: 15px; }
+      .disclaimer { padding: .4rem .9rem; font-size: .51rem; }
+      .bottom-grid { grid-template-columns: 1fr; }
+      .repuestos-col { border-right: none; border-bottom: 1px solid var(--border); padding: .55rem .9rem .7rem; overflow-x: auto; }
+      .labor-col { padding: .55rem .9rem .7rem; }
+      .labor-field input, .labor-field input[type="time"] { font-size: 16px; }
+      .conformidad { padding: .3rem .9rem; }
+      .signatures { grid-template-columns: 1fr; }
+      .sig-col { border-right: none; border-bottom: 1px solid var(--border); padding: .65rem .9rem .8rem; }
+      .sig-col:last-child { border-bottom: none; }
+      .chat-input { font-size: 16px; }
+      .asst-header { padding: .7rem .85rem .5rem; }
+      .chat-msgs { padding: .6rem .75rem; }
+      .chat-input-area { padding: .55rem .75rem; }
+      .mode-tab { padding: .24rem .55rem; font-size: .63rem; }
+      .history-toggle { padding: .24rem .55rem; font-size: .63rem; }
     }
   </style>
 </head>
@@ -471,16 +510,14 @@
     <div class="chat-input-area">
       <div class="input-row">
         <textarea class="chat-input" id="chat-input" rows="1"
-          placeholder="Escribe aquí o usa el micrófono…"
+          placeholder="Escribe la respuesta aquí… (Enter para enviar)"
           onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="send-btn" onclick="sendMessage()" title="Enviar (Enter)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
-      <div class="mic-row">
-        <button class="mic-btn" id="mic-btn" onclick="toggleMic()" title="Hablar">🎙️</button>
-        <span class="mic-status" id="mic-status">Presiona para dictar</span>
-        <button class="skip-btn" id="skip-btn" onclick="skipField()">Omitir →</button>
+      <div class="input-actions">
+        <button class="skip-btn" id="skip-btn" onclick="skipField()">Omitir campo →</button>
       </div>
     </div>
   </div>
@@ -525,7 +562,7 @@ const STEPS = [
   { id:'hora-salida',     q:'¿A qué <b>hora saliste</b>? (ej: 11:00)',                       type:'time' },
 ];
 
-let mode = 'guided', step = 0, recognition = null, isListening = false;
+let mode = 'guided', step = 0;
 let autoSaveTimer = null, historyOpen = false;
 
 // ─────────────────────────────
@@ -533,7 +570,7 @@ let autoSaveTimer = null, historyOpen = false;
 // ─────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fecha').valueAsDate = new Date();
-  initSpeech();
+
   autoIncrementNum();
   loadDraft();
   updateHistoryBadge();
@@ -541,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setTimeout(() => {
     addMsg('assistant',
-      '👋 ¡Hola! Soy tu asistente de llenado.<br>Puedes <b>escribir o dictar por voz</b> las respuestas.<br><br>' +
+      '👋 ¡Hola! Soy tu asistente de llenado.<br>Escribe las respuestas para completar el formulario.<br><br>' +
       '🎯 <b>Modo Guiado</b>: te pregunto campo por campo.<br>' +
       '✨ <b>Modo Libre</b>: dime todo de una sola vez.<br>' +
       '🗂️ <b>Historial</b>: carga informes anteriores con el botón.<br><br>' +
@@ -922,196 +959,6 @@ function sendMessage() {
 
 function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,95)+'px'; }
-
-// ─────────────────────────────
-//  SPEECH  (v5 – teclado nativo + Web Speech)
-// ─────────────────────────────
-let _micTimeout    = null;
-let _micStartTimer = null;
-let _dictateTimer  = null;
-let _usingKeyboard = false;
-
-function _resetMicUI(statusText) {
-  isListening    = false;
-  _usingKeyboard = false;
-  clearTimeout(_micTimeout);
-  clearTimeout(_micStartTimer);
-  clearTimeout(_dictateTimer);
-  const btn = document.getElementById('mic-btn');
-  const st  = document.getElementById('mic-status');
-  btn.classList.remove('listening');
-  st.classList.remove('active');
-  st.textContent = statusText || 'Presiona para dictar';
-  // Quitar banner si existe
-  const banner = document.getElementById('kbd-banner');
-  if (banner) banner.remove();
-}
-
-// ── Muestra el banner "usa el mic del teclado" ──
-function _showKbdBanner() {
-  let b = document.getElementById('kbd-banner');
-  if (b) return;
-  b = document.createElement('div');
-  b.id = 'kbd-banner';
-  b.style.cssText = `
-    position:fixed; bottom:120px; left:50%; transform:translateX(-50%);
-    background:#1e293b; color:#7dced1; border:1px solid rgba(125,206,209,.4);
-    border-radius:12px; padding:.75rem 1.2rem; font-size:.82rem; font-weight:600;
-    font-family:Inter,sans-serif; text-align:center; z-index:9999;
-    box-shadow:0 8px 32px rgba(0,0,0,.5); max-width:90vw;
-    animation: toast-in .28s cubic-bezier(.34,1.56,.64,1);
-  `;
-  b.innerHTML = '📱 Toca el <b>🎙️ del teclado</b> y habla.<br><span style="font-size:.7rem;opacity:.6">El texto se enviará automáticamente.</span>';
-  document.body.appendChild(b);
-}
-
-// ── Modo teclado: focus al input y escucha cambios ──
-function _activateKeyboardMode() {
-  _usingKeyboard = true;
-  const inp = document.getElementById('chat-input');
-  inp.value = '';
-  inp.focus();
-  _showKbdBanner();
-  document.getElementById('mic-status').textContent = '⌨️ Habla con el teclado…';
-
-  // Auto-enviar 2 s después de que el usuario deje de escribir/dictar
-  function onInput() {
-    if (!_usingKeyboard) return;
-    clearTimeout(_dictateTimer);
-    if (!inp.value.trim()) return;
-    _dictateTimer = setTimeout(() => {
-      if (_usingKeyboard && inp.value.trim()) {
-        _resetMicUI();
-        sendMessage();
-      }
-    }, 2000);
-  }
-
-  inp.addEventListener('input', onInput, { once: false });
-  // Guardamos la función para removerla al resetear
-  inp._onDictate = onInput;
-}
-
-function initSpeech() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SR) {
-    // Sin Web Speech: solo modo teclado
-    document.getElementById('mic-status').textContent = '📱 Toca para dictar con el teclado';
-    document.getElementById('mic-btn').title = 'Dictar con el teclado';
-    return;
-  }
-
-  function buildRecognition() {
-    const r = new SR();
-    r.lang            = 'es-PE';
-    r.interimResults  = true;
-    r.continuous      = true;
-    r.maxAlternatives = 1;
-
-    let _lastTranscript = '';
-    let _stopped = false;
-
-    function stopRec() {
-      if (_stopped) return; _stopped = true;
-      try { r.stop(); } catch(e) {}
-    }
-
-    r.onstart = () => {
-      // La API funcionó → cancelar el timer de fallback al teclado
-      clearTimeout(_micStartTimer);
-      clearTimeout(_micTimeout);
-      toast('info', '🎙️ Escuchando – ¡habla ahora!', 2000);
-      _micTimeout = setTimeout(() => stopRec(), 20000);
-    };
-
-    r.onresult = e => {
-      let final = '', interim = '';
-      for (let res of e.results) {
-        if (res.isFinal) final   += res[0].transcript;
-        else             interim += res[0].transcript;
-      }
-      const texto = final || interim;
-      if (texto) {
-        _lastTranscript = texto;
-        const inp = document.getElementById('chat-input');
-        inp.value = texto; autoResize(inp);
-      }
-      if (final) { clearTimeout(_micTimeout); stopRec(); }
-    };
-
-    r.onend = () => {
-      if (_usingKeyboard) return; // ya en modo teclado, ignorar
-      _resetMicUI();
-      const inp = document.getElementById('chat-input');
-      const t = inp.value.trim() || _lastTranscript.trim();
-      if (t) { inp.value = t; sendMessage(); }
-      _lastTranscript = ''; _stopped = false;
-    };
-
-    r.onerror = ev => {
-      clearTimeout(_micTimeout); clearTimeout(_micStartTimer);
-      if (ev.error !== 'aborted') {
-        toast('warn', 'Error de voz: ' + ev.error + ' – usando teclado', 3000);
-      }
-    };
-
-    return r;
-  }
-
-  recognition = { _factory: buildRecognition };
-}
-
-function toggleMic() {
-  // Si ya está en modo teclado, cancelar
-  if (_usingKeyboard) {
-    const inp = document.getElementById('chat-input');
-    if (inp._onDictate) { inp.removeEventListener('input', inp._onDictate); delete inp._onDictate; }
-    _resetMicUI();
-    return;
-  }
-
-  if (isListening && recognition && recognition.abort) {
-    clearTimeout(_micTimeout); clearTimeout(_micStartTimer);
-    try { recognition.abort(); } catch(e) {}
-    isListening = false;
-    document.getElementById('mic-btn').classList.remove('listening');
-    document.getElementById('mic-status').classList.remove('active');
-    document.getElementById('mic-status').textContent = 'Presiona para dictar';
-    return;
-  }
-
-  isListening = true;
-  document.getElementById('mic-btn').classList.add('listening');
-  const s = document.getElementById('mic-status');
-  s.textContent = '🔴 Conectando…'; s.classList.add('active');
-  document.getElementById('chat-input').value = '';
-
-  const hasSR = recognition && recognition._factory;
-
-  if (hasSR) {
-    // Intentar Web Speech; si en 3 s no arranca, caer al teclado
-    const factory = recognition._factory;
-    recognition = factory();
-    recognition._factory = factory;
-
-    clearTimeout(_micStartTimer);
-    _micStartTimer = setTimeout(() => {
-      if (isListening && !_usingKeyboard) {
-        // Web Speech no arrancó → fallback al teclado nativo
-        try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
-        _activateKeyboardMode();
-      }
-    }, 3000);
-
-    try { recognition.start(); }
-    catch(e) { _activateKeyboardMode(); }
-  } else {
-    // Sin Web Speech desde el inicio → directo al teclado
-    _activateKeyboardMode();
-  }
-}
-
 
 
 // ─────────────────────────────
