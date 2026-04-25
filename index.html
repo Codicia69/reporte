@@ -924,29 +924,81 @@ function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault()
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,95)+'px'; }
 
 // ─────────────────────────────
-//  SPEECH  (v4 – diagnóstico + continuous)
+//  SPEECH  (v5 – teclado nativo + Web Speech)
 // ─────────────────────────────
 let _micTimeout    = null;
 let _micStartTimer = null;
+let _dictateTimer  = null;
+let _usingKeyboard = false;
 
 function _resetMicUI(statusText) {
-  isListening = false;
+  isListening    = false;
+  _usingKeyboard = false;
   clearTimeout(_micTimeout);
   clearTimeout(_micStartTimer);
+  clearTimeout(_dictateTimer);
   const btn = document.getElementById('mic-btn');
   const st  = document.getElementById('mic-status');
   btn.classList.remove('listening');
   st.classList.remove('active');
   st.textContent = statusText || 'Presiona para dictar';
+  // Quitar banner si existe
+  const banner = document.getElementById('kbd-banner');
+  if (banner) banner.remove();
+}
+
+// ── Muestra el banner "usa el mic del teclado" ──
+function _showKbdBanner() {
+  let b = document.getElementById('kbd-banner');
+  if (b) return;
+  b = document.createElement('div');
+  b.id = 'kbd-banner';
+  b.style.cssText = `
+    position:fixed; bottom:120px; left:50%; transform:translateX(-50%);
+    background:#1e293b; color:#7dced1; border:1px solid rgba(125,206,209,.4);
+    border-radius:12px; padding:.75rem 1.2rem; font-size:.82rem; font-weight:600;
+    font-family:Inter,sans-serif; text-align:center; z-index:9999;
+    box-shadow:0 8px 32px rgba(0,0,0,.5); max-width:90vw;
+    animation: toast-in .28s cubic-bezier(.34,1.56,.64,1);
+  `;
+  b.innerHTML = '📱 Toca el <b>🎙️ del teclado</b> y habla.<br><span style="font-size:.7rem;opacity:.6">El texto se enviará automáticamente.</span>';
+  document.body.appendChild(b);
+}
+
+// ── Modo teclado: focus al input y escucha cambios ──
+function _activateKeyboardMode() {
+  _usingKeyboard = true;
+  const inp = document.getElementById('chat-input');
+  inp.value = '';
+  inp.focus();
+  _showKbdBanner();
+  document.getElementById('mic-status').textContent = '⌨️ Habla con el teclado…';
+
+  // Auto-enviar 2 s después de que el usuario deje de escribir/dictar
+  function onInput() {
+    if (!_usingKeyboard) return;
+    clearTimeout(_dictateTimer);
+    if (!inp.value.trim()) return;
+    _dictateTimer = setTimeout(() => {
+      if (_usingKeyboard && inp.value.trim()) {
+        _resetMicUI();
+        sendMessage();
+      }
+    }, 2000);
+  }
+
+  inp.addEventListener('input', onInput, { once: false });
+  // Guardamos la función para removerla al resetear
+  inp._onDictate = onInput;
 }
 
 function initSpeech() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   if (!SR) {
-    document.getElementById('mic-status').textContent = '❌ Voz no soportada – usa Chrome';
-    document.getElementById('mic-btn').style.opacity = '.4';
-    document.getElementById('mic-btn').onclick = () =>
-      toast('warn', '⚠️ La voz requiere Chrome (Android) o Safari (iPhone)', 5000);
+    // Sin Web Speech: solo modo teclado
+    document.getElementById('mic-status').textContent = '📱 Toca para dictar con el teclado';
+    document.getElementById('mic-btn').title = 'Dictar con el teclado';
     return;
   }
 
@@ -954,25 +1006,23 @@ function initSpeech() {
     const r = new SR();
     r.lang            = 'es-PE';
     r.interimResults  = true;
-    r.continuous      = true;   // sigue escuchando hasta que paremos manualmente
+    r.continuous      = true;
     r.maxAlternatives = 1;
 
     let _lastTranscript = '';
     let _stopped = false;
 
-    // Función interna para detener cuando tengamos resultado final
-    function stopAfterResult() {
-      if (_stopped) return;
-      _stopped = true;
+    function stopRec() {
+      if (_stopped) return; _stopped = true;
       try { r.stop(); } catch(e) {}
     }
 
     r.onstart = () => {
+      // La API funcionó → cancelar el timer de fallback al teclado
       clearTimeout(_micStartTimer);
       clearTimeout(_micTimeout);
-      toast('info', '🎙️ Micrófono activo – ¡habla!', 2000);
-      // Timeout máximo de grabación: 20 s
-      _micTimeout = setTimeout(() => stopAfterResult(), 20000);
+      toast('info', '🎙️ Escuchando – ¡habla ahora!', 2000);
+      _micTimeout = setTimeout(() => stopRec(), 20000);
     };
 
     r.onresult = e => {
@@ -985,47 +1035,25 @@ function initSpeech() {
       if (texto) {
         _lastTranscript = texto;
         const inp = document.getElementById('chat-input');
-        inp.value = texto;
-        autoResize(inp);
+        inp.value = texto; autoResize(inp);
       }
-      // Tan pronto tengamos un resultado final, paramos
-      if (final) {
-        clearTimeout(_micTimeout);
-        stopAfterResult();
-      }
+      if (final) { clearTimeout(_micTimeout); stopRec(); }
     };
 
     r.onend = () => {
-      _resetMicUI('Presiona para dictar');
+      if (_usingKeyboard) return; // ya en modo teclado, ignorar
+      _resetMicUI();
       const inp = document.getElementById('chat-input');
-      const t = (inp.value.trim() || _lastTranscript.trim());
-      if (t) {
-        inp.value = t;
-        sendMessage();
-      }
-      _lastTranscript = '';
-      _stopped = false;
+      const t = inp.value.trim() || _lastTranscript.trim();
+      if (t) { inp.value = t; sendMessage(); }
+      _lastTranscript = ''; _stopped = false;
     };
 
     r.onerror = ev => {
-      clearTimeout(_micTimeout);
-      clearTimeout(_micStartTimer);
-      // Mostrar el error EXACTO en un toast para poder diagnosticar
-      const errMap = {
-        'no-speech'          : '🔇 Sin audio – habla más fuerte o acércate',
-        'not-allowed'        : '🔒 Permiso de micrófono denegado',
-        'network'            : '🌐 Error de red – sin internet',
-        'audio-capture'      : '🎤 Micrófono no encontrado',
-        'service-not-allowed': '🚫 Servicio de voz bloqueado',
-        'bad-grammar'        : '❓ Error de gramática',
-        'language-not-supported': '🌐 Idioma no soportado',
-      };
+      clearTimeout(_micTimeout); clearTimeout(_micStartTimer);
       if (ev.error !== 'aborted') {
-        const msg = errMap[ev.error] || ('Error: ' + ev.error);
-        toast('warn', msg, 6000);
-        document.getElementById('mic-status').textContent = '⚠️ ' + (ev.error || 'error');
+        toast('warn', 'Error de voz: ' + ev.error + ' – usando teclado', 3000);
       }
-      // onend llegará y reseteará isListening
     };
 
     return r;
@@ -1035,12 +1063,17 @@ function initSpeech() {
 }
 
 function toggleMic() {
-  if (!recognition || !recognition._factory) return;
+  // Si ya está en modo teclado, cancelar
+  if (_usingKeyboard) {
+    const inp = document.getElementById('chat-input');
+    if (inp._onDictate) { inp.removeEventListener('input', inp._onDictate); delete inp._onDictate; }
+    _resetMicUI();
+    return;
+  }
 
-  if (isListening) {
-    clearTimeout(_micTimeout);
-    clearTimeout(_micStartTimer);
-    try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
+  if (isListening && recognition && recognition.abort) {
+    clearTimeout(_micTimeout); clearTimeout(_micStartTimer);
+    try { recognition.abort(); } catch(e) {}
     isListening = false;
     document.getElementById('mic-btn').classList.remove('listening');
     document.getElementById('mic-status').classList.remove('active');
@@ -1048,34 +1081,37 @@ function toggleMic() {
     return;
   }
 
-  const factory = recognition._factory;
-  recognition   = factory();
-  recognition._factory = factory;
-
   isListening = true;
   document.getElementById('mic-btn').classList.add('listening');
   const s = document.getElementById('mic-status');
-  s.textContent = '🔴 Escuchando…';
-  s.classList.add('active');
+  s.textContent = '🔴 Conectando…'; s.classList.add('active');
   document.getElementById('chat-input').value = '';
 
-  // Timer pre-inicio: si onstart no llega en 10 s → error de red/permisos
-  clearTimeout(_micStartTimer);
-  _micStartTimer = setTimeout(() => {
-    if (isListening) {
-      toast('warn', '⏱️ Sin respuesta del servidor de voz – revisa tu internet', 5000);
-      try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
-      _resetMicUI('⚠️ Sin respuesta – toca de nuevo');
-    }
-  }, 10000);
+  const hasSR = recognition && recognition._factory;
 
-  try {
-    recognition.start();
-  } catch(e) {
-    toast('warn', '❌ Error al iniciar: ' + (e.message || e.name), 5000);
-    _resetMicUI('⚠️ No se pudo iniciar');
+  if (hasSR) {
+    // Intentar Web Speech; si en 3 s no arranca, caer al teclado
+    const factory = recognition._factory;
+    recognition = factory();
+    recognition._factory = factory;
+
+    clearTimeout(_micStartTimer);
+    _micStartTimer = setTimeout(() => {
+      if (isListening && !_usingKeyboard) {
+        // Web Speech no arrancó → fallback al teclado nativo
+        try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
+        _activateKeyboardMode();
+      }
+    }, 3000);
+
+    try { recognition.start(); }
+    catch(e) { _activateKeyboardMode(); }
+  } else {
+    // Sin Web Speech desde el inicio → directo al teclado
+    _activateKeyboardMode();
   }
 }
+
 
 
 // ─────────────────────────────
