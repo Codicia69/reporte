@@ -924,7 +924,7 @@ function handleKey(e) { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault()
 function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,95)+'px'; }
 
 // ─────────────────────────────
-//  SPEECH  (mobile-safe v3)
+//  SPEECH  (v4 – diagnóstico + continuous)
 // ─────────────────────────────
 let _micTimeout    = null;
 let _micStartTimer = null;
@@ -943,33 +943,39 @@ function _resetMicUI(statusText) {
 function initSpeech() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    document.getElementById('mic-status').textContent = 'Voz no disponible en este navegador';
-    document.getElementById('mic-btn').style.opacity = '.35';
-    document.getElementById('mic-btn').onclick = null;
+    document.getElementById('mic-status').textContent = '❌ Voz no soportada – usa Chrome';
+    document.getElementById('mic-btn').style.opacity = '.4';
+    document.getElementById('mic-btn').onclick = () =>
+      toast('warn', '⚠️ La voz requiere Chrome (Android) o Safari (iPhone)', 5000);
     return;
   }
 
   function buildRecognition() {
     const r = new SR();
     r.lang            = 'es-PE';
-    r.interimResults  = true;   // feedback visual mientras el usuario habla
-    r.continuous      = false;
+    r.interimResults  = true;
+    r.continuous      = true;   // sigue escuchando hasta que paremos manualmente
     r.maxAlternatives = 1;
 
-    let _lastTranscript = ''; // respaldo para evitar race conditions
+    let _lastTranscript = '';
+    let _stopped = false;
+
+    // Función interna para detener cuando tengamos resultado final
+    function stopAfterResult() {
+      if (_stopped) return;
+      _stopped = true;
+      try { r.stop(); } catch(e) {}
+    }
 
     r.onstart = () => {
-      // Conexión establecida: cancelar pre-timer y arrancar timer principal
       clearTimeout(_micStartTimer);
       clearTimeout(_micTimeout);
-      _micTimeout = setTimeout(() => {
-        try { r.abort(); } catch(e) {}
-        // onend se disparará y limpiará la UI
-      }, 15000); // 15 s de grabación máxima
+      toast('info', '🎙️ Micrófono activo – ¡habla!', 2000);
+      // Timeout máximo de grabación: 20 s
+      _micTimeout = setTimeout(() => stopAfterResult(), 20000);
     };
 
     r.onresult = e => {
-      clearTimeout(_micTimeout); // hay actividad, reiniciamos timer
       let final = '', interim = '';
       for (let res of e.results) {
         if (res.isFinal) final   += res[0].transcript;
@@ -977,44 +983,49 @@ function initSpeech() {
       }
       const texto = final || interim;
       if (texto) {
-        _lastTranscript = texto; // guardar respaldo
+        _lastTranscript = texto;
         const inp = document.getElementById('chat-input');
         inp.value = texto;
         autoResize(inp);
       }
-      // Reiniciar el timer principal tras actividad de voz
-      clearTimeout(_micTimeout);
-      _micTimeout = setTimeout(() => {
-        try { r.abort(); } catch(e) {}
-      }, 10000);
+      // Tan pronto tengamos un resultado final, paramos
+      if (final) {
+        clearTimeout(_micTimeout);
+        stopAfterResult();
+      }
     };
 
     r.onend = () => {
       _resetMicUI('Presiona para dictar');
-      // Usar el input O el respaldo por si hubo race condition
       const inp = document.getElementById('chat-input');
       const t = (inp.value.trim() || _lastTranscript.trim());
       if (t) {
-        inp.value = t; // asegurar que está en el input
+        inp.value = t;
         sendMessage();
       }
       _lastTranscript = '';
+      _stopped = false;
     };
 
     r.onerror = ev => {
-      // Solo limpiamos timers; onend llegará y reseteará isListening + UI
       clearTimeout(_micTimeout);
       clearTimeout(_micStartTimer);
-      const msgs = {
-        'no-speech'    : '⚠️ Sin audio – habla más fuerte',
-        'not-allowed'  : '⚠️ Permiso de micrófono denegado',
-        'network'      : '⚠️ Sin conexión a internet',
-        'audio-capture': '⚠️ Micrófono no encontrado',
-        'aborted'      : null, // cancelado a propósito, no mostrar nada
+      // Mostrar el error EXACTO en un toast para poder diagnosticar
+      const errMap = {
+        'no-speech'          : '🔇 Sin audio – habla más fuerte o acércate',
+        'not-allowed'        : '🔒 Permiso de micrófono denegado',
+        'network'            : '🌐 Error de red – sin internet',
+        'audio-capture'      : '🎤 Micrófono no encontrado',
+        'service-not-allowed': '🚫 Servicio de voz bloqueado',
+        'bad-grammar'        : '❓ Error de gramática',
+        'language-not-supported': '🌐 Idioma no soportado',
       };
-      const msg = msgs[ev.error];
-      if (msg) document.getElementById('mic-status').textContent = msg;
-      // onend se encargará del resto
+      if (ev.error !== 'aborted') {
+        const msg = errMap[ev.error] || ('Error: ' + ev.error);
+        toast('warn', msg, 6000);
+        document.getElementById('mic-status').textContent = '⚠️ ' + (ev.error || 'error');
+      }
+      // onend llegará y reseteará isListening
     };
 
     return r;
@@ -1027,7 +1038,6 @@ function toggleMic() {
   if (!recognition || !recognition._factory) return;
 
   if (isListening) {
-    // Cancelación manual inmediata
     clearTimeout(_micTimeout);
     clearTimeout(_micStartTimer);
     try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
@@ -1038,7 +1048,6 @@ function toggleMic() {
     return;
   }
 
-  // Nueva instancia limpia en cada uso (requerido por iOS y muchos Android)
   const factory = recognition._factory;
   recognition   = factory();
   recognition._factory = factory;
@@ -1050,21 +1059,21 @@ function toggleMic() {
   s.classList.add('active');
   document.getElementById('chat-input').value = '';
 
-  // ★ Timer pre-inicio (desde aquí, no en onstart)
-  // En redes móviles lentas, la conexión a Google Speech puede tardar varios segundos.
-  // Si después de 10 s el navegador no confirmó el inicio, desbloqueamos la UI.
+  // Timer pre-inicio: si onstart no llega en 10 s → error de red/permisos
   clearTimeout(_micStartTimer);
   _micStartTimer = setTimeout(() => {
     if (isListening) {
+      toast('warn', '⏱️ Sin respuesta del servidor de voz – revisa tu internet', 5000);
       try { recognition.abort ? recognition.abort() : recognition.stop(); } catch(e) {}
-      _resetMicUI('⚠️ Sin respuesta del servidor – toca de nuevo');
+      _resetMicUI('⚠️ Sin respuesta – toca de nuevo');
     }
-  }, 10000); // 10 s es seguro para redes móviles lentas
+  }, 10000);
 
   try {
     recognition.start();
   } catch(e) {
-    _resetMicUI('⚠️ No se pudo iniciar el micrófono');
+    toast('warn', '❌ Error al iniciar: ' + (e.message || e.name), 5000);
+    _resetMicUI('⚠️ No se pudo iniciar');
   }
 }
 
