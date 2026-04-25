@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     :root {
       --brand: #7dced1;
@@ -346,8 +347,8 @@
     <button class="btn btn-ghost" onclick="resetForm()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>Nuevo
     </button>
-    <button class="btn btn-primary" onclick="window.print()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Imprimir / PDF
+    <button class="btn btn-primary" onclick="downloadPDF()">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Descargar PDF
     </button>
   </div>
 </div>
@@ -556,28 +557,59 @@ let mode = 'guided', step = 0;
 let autoSaveTimer = null, historyOpen = false;
 
 // ─────────────────────────────
-//  GOOGLE SHEETS CONFIG
+//  CLOUD STORAGE CONFIG (Google Drive)
 // ─────────────────────────────
-// ← Pega aquí tu URL del Apps Script después de deployar
-const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyJIu4-hWhhwyj81MLTr11OcVGagtmrRNZ7sfC5lrono_BiQaUDjsEYzVTskpMLNjo/exec';
+const CLOUD_URL = 'https://script.google.com/macros/s/AKfycbyJIu4-hWhhwyj81MLTr11OcVGagtmrRNZ7sfC5lrono_BiQaUDjsEYzVTskpMLNjo/exec';
 
-async function sendToSheets(data) {
-  if (!SHEETS_URL || SHEETS_URL === 'PEGA_TU_URL_AQUI') return;
+async function uploadToCloud(pdfBase64, filename, num, cliente) {
+  if (!CLOUD_URL || CLOUD_URL.includes('PEGA')) return;
+  
   try {
-    const res = await fetch(SHEETS_URL, {
+    const res = await fetch(CLOUD_URL, {
       method: 'POST',
-      body: JSON.stringify(data),
-      headers: { 'Content-Type': 'text/plain' } // Apps Script requiere text/plain para evitar CORS preflight
+      body: JSON.stringify({
+        pdf: pdfBase64,
+        filename: filename,
+        num: num,
+        cliente: cliente
+      }),
+      headers: { 'Content-Type': 'text/plain' }
     });
     const json = await res.json();
     if (json.ok) {
-      toast('success', '✅ Guardado en Google Sheets', 3500);
+      toast('success', '☁️ PDF guardado en Google Drive');
     } else {
-      toast('warn', '⚠️ Sheets: ' + (json.error || 'error desconocido'), 4000);
+      toast('warn', '⚠️ Error en Drive: ' + json.error);
     }
   } catch(e) {
-    toast('warn', '📵 Sin conexión — solo guardado local', 3500);
+    toast('warn', '📵 Error de conexión con la nube');
   }
+}
+
+// ─────────────────────────────
+//  PDF GENERATION
+// ─────────────────────────────
+function downloadPDF() {
+  const element = document.querySelector('.form-card');
+  const num = document.getElementById('num-informe').value || '000000';
+  const cliente = document.getElementById('empresa').value || 'Cliente';
+  
+  toast('info', 'Generando PDF...', 2000);
+  
+  const opt = {
+    margin:       10,
+    filename:     `Informe_${num}_${cliente}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(element).save().then(() => {
+    toast('success', '✅ PDF descargado con éxito');
+  }).catch(err => {
+    console.error(err);
+    toast('warn', '❌ Error al generar PDF');
+  });
 }
 
 // ─────────────────────────────
@@ -686,23 +718,47 @@ function loadDraft() { try { const r = localStorage.getItem('pp_draft'); if (r) 
 // ─────────────────────────────
 function getHistory() { try { return JSON.parse(localStorage.getItem('pp_history') || '[]'); } catch(e) { return []; } }
 
-function saveReport() {
+async function saveReport() {
   const data = collectFormData();
-  const num  = document.getElementById('num-informe').value.trim() || '??????';
+  const num  = document.getElementById('num-informe').value.trim() || '000000';
   const emp  = document.getElementById('empresa').value.trim() || 'Sin nombre';
   const hist = getHistory();
   const idx  = hist.findIndex(h => h.num === num);
+  
   if (idx >= 0) hist.splice(idx, 1);
   hist.unshift({ id: Date.now(), num, empresa: emp, data });
   if (hist.length > 30) hist.pop();
+  
   localStorage.setItem('pp_history', JSON.stringify(hist));
   localStorage.setItem('pp_last_num', parseInt(num) || 0);
   localStorage.removeItem('pp_draft');
   updateHistoryBadge();
   if (historyOpen) renderHistory();
-  toast('success', `💾 Informe #${num} guardado localmente`);
-  addMsg('system', `💾 Informe <b>#${num}</b> — ${emp} guardado`);
-  sendToSheets({ ...data, 'num-informe': num }); // enviar a Google Sheets (async, no bloquea)
+  
+  toast('info', 'Guardando local y en la nube...');
+
+  // Generar PDF para la nube
+  const element = document.querySelector('.form-card');
+  const filename = `Informe_${num}_${emp}.pdf`;
+  const opt = {
+    margin: 10,
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
+  try {
+    // Generamos el PDF como Base64
+    const pdfBase64 = await html2pdf().set(opt).from(element).output('datauristring');
+    // Lo subimos a Drive
+    await uploadToCloud(pdfBase64, filename, num, emp);
+  } catch (err) {
+    console.error("Error subiendo PDF:", err);
+  }
+
+  toast('success', `💾 Informe #${num} guardado`);
+  addMsg('system', `💾 Informe <b>#${num}</b> — ${emp} guardado local y nube`);
 }
 
 function loadReport(id) {
