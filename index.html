@@ -280,12 +280,14 @@
       .sig-col { padding: .4rem .8rem .6rem; }
       .form-footer { padding: .25rem; font-size: .55rem; }
       
-      /* Watermark Placeholder */
+      /* Watermark Logo */
       .watermark {
         display: block !important;
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
-        opacity: 0.05; font-size: 8rem; color: #000; pointer-events: none; z-index: -1;
-        white-space: nowrap; font-weight: 900;
+        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 400px; height: 400px;
+        background: url('logo.png') no-repeat center;
+        background-size: contain;
+        opacity: 0.04; pointer-events: none; z-index: -1;
       }
       
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -376,13 +378,15 @@
   <!-- ═══ FORM PANEL ═══ -->
   <div class="form-panel">
     <div class="form-card">
-      <div class="watermark">PLOTTERPEDIA</div>
+      <div class="watermark"></div>
       <div class="form-header">
         <div class="logo-wrap">
-          <svg viewBox="0 0 60 60" fill="none"><rect width="60" height="60" rx="10" fill="#1a1a2e"/><text x="8" y="46" font-family="Inter,sans-serif" font-weight="900" font-size="40" fill="#7dced1">p</text><circle cx="48" cy="16" r="7" fill="#7dced1"/></svg>
-          <span class="logo-text">PLOTTERPEDIA</span>
+          <img src="logo.png" alt="Plotterpedia" style="height:45px; width:auto; display:block;">
+          <div class="logo-text">PLOTTERPEDIA</div>
         </div>
-        <div><p class="form-title">REPORTE TÉCNICO</p></div>
+        <div class="header-center">
+          <h1 class="form-title">REPORTE TÉCNICO</h1>
+        </div>
         <div style="text-align:right">
           <span class="badge-dept">Departamento Técnico</span><br>
           <span class="form-num-label">Nº de Informe</span>
