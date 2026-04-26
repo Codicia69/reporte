@@ -150,6 +150,16 @@
     .sig-name { border: none; border-bottom: 1.5px solid var(--border); font-family: inherit; font-size: .7rem; text-align: center; outline: none; background: transparent; width: 100%; color: var(--ink); padding: .06rem 0; margin-top: 4px; }
     .form-footer { background: var(--ink); color: rgba(255,255,255,.45); text-align: center; font-size: .6rem; letter-spacing: .08em; padding: .42rem; }
 
+    /* ── WATERMARK ── */
+    .watermark {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 420px; height: 420px;
+      background: url('logo.png') no-repeat center;
+      background-size: contain;
+      opacity: 0.08; pointer-events: none; z-index: 0;
+      display: block;
+    }
+
     /* ══ ASSISTANT PANEL ══ */
     .assistant-panel { background: var(--sidebar); border-left: 1px solid var(--sidebar-border); display: flex; flex-direction: column; overflow: hidden; }
     .asst-header { padding: .9rem 1.1rem .65rem; border-bottom: 1px solid var(--sidebar-border); flex-shrink: 0; }
@@ -284,10 +294,10 @@
       .watermark {
         display: block !important;
         position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 400px; height: 400px;
+        width: 450px; height: 450px;
         background: url('logo.png') no-repeat center;
         background-size: contain;
-        opacity: 0.04; pointer-events: none; z-index: -1;
+        opacity: 0.1; pointer-events: none; z-index: -1;
       }
       
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -377,19 +387,24 @@
 
   <!-- ═══ FORM PANEL ═══ -->
   <div class="form-panel">
-    <div class="form-card">
+    <div class="form-card" style="position:relative; overflow:hidden;">
       <div class="watermark"></div>
-      <div class="form-header">
-        <div class="logo-wrap" style="display:flex; align-items:center;">
-          <img src="logo.png" alt="Plotterpedia" style="height:52px; width:auto; display:block;">
+      <div class="form-header" style="display:grid; grid-template-columns: 1.2fr 1fr 1fr; align-items:center; gap:10px;">
+        <div class="logo-area" style="display:flex; align-items:center; gap:12px;">
+          <img src="logo.png" alt="Plotterpedia" style="height:58px; width:auto; display:block;">
+          <div class="biz-info" style="font-size:7px; line-height:1.4; color:#64748b; font-weight:600; text-transform:uppercase; border-left:1px solid #e2e8f0; padding-left:10px;">
+            934 686 341 / 968 246 871<br>
+            ventas@plotterpedia.com<br>
+            Garcilaso de la vega 1345 / 3A 106
+          </div>
         </div>
-        <div class="header-center" style="flex:1; text-align:center; padding-right:20px;">
-          <h1 class="form-title" style="margin:0; font-size:1.1rem; letter-spacing:0.05em;">REPORTE TÉCNICO</h1>
+        <div class="header-center" style="text-align:center;">
+          <h1 class="form-title" style="margin:0; font-size:1.15rem; letter-spacing:0.04em; white-space:nowrap;">REPORTE TÉCNICO</h1>
         </div>
-        <div style="text-align:right">
+        <div class="header-right" style="text-align:right">
           <span class="badge-dept">Departamento Técnico</span><br>
           <span class="form-num-label">Nº de Informe</span>
-          <input class="form-num-input" type="text" id="num-informe" value="000251">
+          <input class="form-num-input" type="text" id="num-informe" value="000280">
         </div>
       </div>
 
