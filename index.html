@@ -561,6 +561,30 @@ let autoSaveTimer = null, historyOpen = false;
 // ─────────────────────────────
 const CLOUD_URL = 'https://script.google.com/macros/s/AKfycbyOyzPwdOTU14wOEq3yE4yDXI6qrhm3QxDe4W4cfKC2oTDfOEoAS0z0R6y7cY4eI18/exec';
 
+async function fetchNextId() {
+  const el = document.getElementById('num-informe');
+  if (!el) return;
+  
+  const oldVal = el.value;
+  el.value = '...'; // indicador de carga
+  el.classList.add('loading-id');
+  
+  try {
+    const res = await fetch(`${CLOUD_URL}?action=getNextId`);
+    const nextId = await res.text();
+    if (nextId && nextId.length >= 4) {
+      el.value = nextId;
+    } else {
+      el.value = oldVal;
+    }
+  } catch(e) {
+    console.error("Error obteniendo ID:", e);
+    el.value = oldVal;
+  } finally {
+    el.classList.remove('loading-id');
+  }
+}
+
 async function uploadToCloud(pdfBase64, filename, num, cliente) {
   if (!CLOUD_URL || CLOUD_URL.includes('PEGA')) return;
   
@@ -621,6 +645,7 @@ document.addEventListener('DOMContentLoaded', () => {
   autoIncrementNum();
   loadDraft();
   updateHistoryBadge();
+  fetchNextId();
   setupAutoSave();
 
   setTimeout(() => {
@@ -737,7 +762,6 @@ async function saveReport() {
   
   toast('info', 'Guardando local y en la nube...');
 
-  // Generar PDF para la nube
   const element = document.querySelector('.form-card');
   const filename = `Informe_${num}_${emp}.pdf`;
   const opt = {
@@ -749,9 +773,7 @@ async function saveReport() {
   };
 
   try {
-    // Generamos el PDF como Base64
     const pdfBase64 = await html2pdf().set(opt).from(element).output('datauristring');
-    // Lo subimos a Drive
     await uploadToCloud(pdfBase64, filename, num, emp);
   } catch (err) {
     console.error("Error subiendo PDF:", err);
@@ -1044,10 +1066,11 @@ function clearFormFields() {
 }
 
 function resetForm() {
-  if (!confirm('¿Iniciar un nuevo formulario?\nLos datos no guardados se perderán.')) return;
-  clearFormFields(); autoIncrementNum();
+  if (!confirm('¿Vaciar todo el formulario para un nuevo informe?')) return;
+  clearFormFields();
   localStorage.removeItem('pp_draft');
   step=0; updateProg();
+  fetchNextId();
   document.getElementById('chat-msgs').innerHTML='';
   addMsg('system','🆕 Nuevo formulario listo');
   setTimeout(()=>askStep(),380);
