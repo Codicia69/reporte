@@ -139,7 +139,7 @@
     .labor-check-item { display: inline-flex; align-items: center; gap: .22rem; font-size: .66rem; color: var(--ink); cursor: pointer; }
     .labor-check-item input[type="checkbox"] { width: 13px; height: 13px; accent-color: var(--brand-dark); cursor: pointer; }
     .conformidad { font-size: .55rem; color: var(--muted); padding: .3rem 1.6rem; border-top: 1px solid var(--border); font-style: italic; }
-    .signatures { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--border); }
+    .signatures { display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--border); }
     .sig-col { padding: .65rem 1.1rem .85rem; border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: .35rem; position: relative; }
     .sig-col:last-child { border-right: none; }
     .sig-label { font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink); margin-bottom: 2px; }
@@ -473,12 +473,6 @@
           </div>
           <input type="text" class="sig-name" id="nombre-tecnico" placeholder="Nombre del Técnico">
         </div>
-        <div class="sig-col">
-          <div class="sig-label" style="opacity:.6">Sello Plotterpedia</div>
-          <div style="height:75px; display:flex; align-items:center; justify-content:center;">
-             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--border)" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
-          </div>
-        </div>
       </div>
       <div class="form-footer">www.plotterpedia.com</div>
     </div>
@@ -678,6 +672,8 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     setTimeout(() => askStep(), 700);
   }, 250);
+
+  initSignaturePads();
 
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveReport(); }
@@ -1094,6 +1090,8 @@ function resetForm() {
   document.getElementById('chat-msgs').innerHTML='';
   addMsg('system','🆕 Nuevo formulario listo');
   setTimeout(()=>askStep(),380);
+  if (padCliente) padCliente.clear();
+  if (padTecnico) padTecnico.clear();
   toast('info','🆕 Nuevo informe iniciado');
 }
 
@@ -1124,6 +1122,44 @@ function showQR() {
 }
 
 function hideQR(e) { if (!e||e.target===document.getElementById('qr-overlay')) document.getElementById('qr-overlay').classList.remove('show'); }
+
+// ─────────────────────────────
+//  SIGNATURES & AUTO-FILL
+// ─────────────────────────────
+let padCliente, padTecnico;
+
+function initSignaturePads() {
+  const canvas1 = document.getElementById('pad-cliente');
+  const canvas2 = document.getElementById('pad-tecnico');
+  if (!canvas1 || !canvas2) return;
+
+  const resize = (canvas) => {
+    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    canvas.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
+  };
+
+  resize(canvas1); resize(canvas2);
+  
+  padCliente = new SignaturePad(canvas1, { penColor: "rgb(26, 26, 46)", throttle: 0 });
+  padTecnico = new SignaturePad(canvas2, { penColor: "rgb(26, 26, 46)", throttle: 0 });
+
+  window.addEventListener("resize", () => { resize(canvas1); resize(canvas2); });
+}
+
+function clearSig(who) {
+  if (who === 'cliente') padCliente && padCliente.clear();
+  else padTecnico && padTecnico.clear();
+}
+
+// Sincronizar nombres automáticamente
+document.getElementById('contacto').addEventListener('input', e => {
+  document.getElementById('nombre-cliente').value = e.target.value;
+});
+document.getElementById('tecnico').addEventListener('input', e => {
+  document.getElementById('nombre-tecnico').value = e.target.value;
+});
 </script>
 </body>
 </html>
